@@ -7,6 +7,21 @@ const api = axios.create({
   timeout: 30000,
 });
 
+// Cache map for API requests
+const cache = new Map();
+
+/**
+ * Helper to fetch with caching
+ */
+async function fetchWithCache(key, url) {
+  if (cache.has(key)) {
+    return cache.get(key);
+  }
+  const response = await api.get(url);
+  cache.set(key, response.data);
+  return response.data;
+}
+
 /**
  * Upload a file for processing
  */
@@ -32,32 +47,28 @@ export async function submitText(text) {
  * Search word definition from Jisho
  */
 export async function searchWord(word) {
-  const response = await api.get(`/dictionary/search/${encodeURIComponent(word)}`);
-  return response.data;
+  return fetchWithCache(`word:${word}`, `/dictionary/search/${encodeURIComponent(word)}`);
 }
 
 /**
  * Get kanji details
  */
 export async function getKanjiInfo(kanji) {
-  const response = await api.get(`/dictionary/kanji/${encodeURIComponent(kanji)}`);
-  return response.data;
+  return fetchWithCache(`kanjiInfo:${kanji}`, `/dictionary/kanji/${encodeURIComponent(kanji)}`);
 }
 
 /**
  * Get example sentences
  */
 export async function getExampleSentences(word) {
-  const response = await api.get(`/sentences/search/${encodeURIComponent(word)}`);
-  return response.data;
+  return fetchWithCache(`sentences:${word}`, `/sentences/search/${encodeURIComponent(word)}`);
 }
 
 /**
  * Get kanji stroke data
  */
 export async function getKanjiStrokes(kanji) {
-  const response = await api.get(`/kanji/strokes/${encodeURIComponent(kanji)}`);
-  return response.data;
+  return fetchWithCache(`strokes:${kanji}`, `/kanji/strokes/${encodeURIComponent(kanji)}`);
 }
 
 /**

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { useTheme } from './hooks/useTheme';
 import Header from './components/Header';
@@ -14,6 +14,46 @@ function AppContent() {
   const { tokens, isPanelOpen, isLoading } = state;
 
   const hasDocument = tokens.length > 0;
+
+  // Panel Resizing Logic
+  const [panelWidth, setPanelWidth] = useState(500);
+  const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDraggingRef.current) return;
+      let newWidth = window.innerWidth - e.clientX;
+      if (newWidth < 350) newWidth = 350;
+      if (newWidth > window.innerWidth - 300) newWidth = window.innerWidth - 300;
+      setPanelWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      if (isDraggingRef.current) {
+        isDraggingRef.current = false;
+        setIsDragging(false);
+        document.body.style.cursor = 'default';
+        document.body.style.userSelect = 'auto';
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
+  const startDragging = (e) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    setIsDragging(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 dark:bg-nihon-darker transition-colors duration-300">
@@ -38,18 +78,39 @@ function AppContent() {
 
             {/* Text Viewer */}
             <div
-              className={`flex-1 overflow-hidden transition-all duration-300 ${
-                isPanelOpen ? 'mr-0' : ''
-              }`}
+              className={`flex-1 overflow-hidden ${
+                isDragging ? '' : 'transition-all duration-300'
+              } ${isPanelOpen ? 'mr-0' : ''}`}
             >
-              <div className="h-full bg-white dark:bg-nihon-dark border-r border-gray-200 dark:border-nihon-border">
+              <div className="h-full bg-white dark:bg-nihon-dark">
                 <TextViewer />
               </div>
             </div>
 
+            {/* Resizer Handle */}
+            {isPanelOpen && (
+              <div
+                onMouseDown={startDragging}
+                className={`w-1.5 cursor-col-resize hover:bg-sakura-400 active:bg-sakura-500 transition-colors z-10 flex-shrink-0 flex items-center justify-center group ${
+                  isDragging ? 'bg-sakura-500' : 'bg-gray-200 dark:bg-nihon-border'
+                }`}
+              >
+                <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="w-0.5 h-1 bg-white rounded-full"></div>
+                  <div className="w-0.5 h-1 bg-white rounded-full"></div>
+                  <div className="w-0.5 h-1 bg-white rounded-full"></div>
+                </div>
+              </div>
+            )}
+
             {/* Word Analysis Panel */}
             {isPanelOpen && (
-              <div className="w-[420px] flex-shrink-0 overflow-hidden border-l border-gray-200 dark:border-nihon-border bg-white dark:bg-nihon-card">
+              <div
+                style={{ width: `${panelWidth}px` }}
+                className={`flex-shrink-0 overflow-hidden bg-white dark:bg-nihon-card ${
+                  isDragging ? '' : 'transition-all duration-300'
+                }`}
+              >
                 <WordPanel />
               </div>
             )}

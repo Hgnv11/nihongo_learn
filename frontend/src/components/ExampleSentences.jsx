@@ -20,8 +20,24 @@ export default function ExampleSentences({ sentences }) {
           className="glass-card-solid p-4 hover:shadow-md transition-shadow"
         >
           {/* Japanese sentence */}
-          <p className="text-base font-japanese text-gray-800 dark:text-gray-200 mb-2 leading-relaxed">
-            {sentence.text}
+          <p className="text-base font-japanese text-gray-800 dark:text-gray-200 mb-2 leading-relaxed flex flex-wrap items-end">
+            {sentence.tokens ? (
+              sentence.tokens.map((token, idx) => {
+                if (token.hasKanji && token.readingHiragana && token.readingHiragana !== token.surface) {
+                  return (
+                    <ruby key={idx} className="group cursor-default mr-0.5">
+                      {token.surface}
+                      <rt className="text-[10px] text-gray-500 opacity-80 select-none pointer-events-none mb-0.5">
+                        {token.readingHiragana}
+                      </rt>
+                    </ruby>
+                  );
+                }
+                return <span key={idx}>{token.surface}</span>;
+              })
+            ) : (
+              sentence.text
+            )}
           </p>
 
           {/* Translation */}

@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import KanjiWriter from './KanjiWriter';
 import ExampleSentences from './ExampleSentences';
 import { getKanaForms } from '../utils/kana';
 
 export default function WordPanel() {
+  const [isKanaExpanded, setIsKanaExpanded] = useState(true);
   const { state, dispatch } = useApp();
   const {
     selectedWord,
@@ -74,16 +76,37 @@ export default function WordPanel() {
       {/* Panel Header */}
       <div className="px-5 py-4 border-b border-gray-200 dark:border-nihon-border">
         <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="min-w-0">
-            <span className="text-3xl font-bold font-japanese text-gray-800 dark:text-gray-100">
-              {selectedWord.surface}
-            </span>
-            {(selectedKana.hiragana || selectedKana.katakana) && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
-                <KanaChip label="Hiragana" value={selectedKana.hiragana} />
-                <KanaChip label="Katakana" value={selectedKana.katakana} />
-              </div>
-            )}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-3xl font-bold font-japanese text-gray-800 dark:text-gray-100">
+                {selectedWord.surface}
+              </span>
+              {(selectedKana.hiragana || selectedKana.katakana) && (
+                <button
+                  onClick={() => setIsKanaExpanded(!isKanaExpanded)}
+                  className="p-1 rounded-full text-gray-400 hover:text-sakura-500 hover:bg-gray-100 dark:hover:bg-nihon-dark transition-all mt-1 outline-none"
+                  title={isKanaExpanded ? "Thu gọn cách đọc" : "Hiện cách đọc"}
+                >
+                  <svg 
+                    className={`w-5 h-5 transition-transform duration-300 ${isKanaExpanded ? 'rotate-180' : ''}`} 
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            
+            <div 
+              className={`grid grid-cols-1 sm:grid-cols-2 gap-2 overflow-hidden transition-all duration-300 transform origin-top ${
+                isKanaExpanded && (selectedKana.hiragana || selectedKana.katakana) 
+                  ? 'max-h-40 mt-3 opacity-100 scale-y-100' 
+                  : 'max-h-0 mt-0 opacity-0 scale-y-0'
+              }`}
+            >
+              <KanaChip label="Hiragana" value={selectedKana.hiragana} />
+              <KanaChip label="Katakana" value={selectedKana.katakana} />
+            </div>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
             <button

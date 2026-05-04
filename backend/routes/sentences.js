@@ -1,5 +1,6 @@
 const express = require('express');
 const fetch = require('node-fetch');
+const { tokenizeText } = require('../utils/textProcessor');
 
 const router = express.Router();
 
@@ -62,10 +63,16 @@ router.get('/search/:word', async (req, res) => {
               ? result.translations.flat().find((t) => t && t.lang === 'vie')
               : null;
 
+            let tokens = null;
+            try {
+              if (result.text) tokens = tokenizeText(result.text);
+            } catch (e) {}
+
             return {
               id: result.id,
               text: result.text,
               lang: result.lang,
+              tokens,
               translation: translation ? translation.text : null,
               translationLang: translation ? translation.lang : null,
             };
@@ -98,7 +105,7 @@ router.get('/search/:word', async (req, res) => {
  * Generate fallback example sentences when API is unavailable
  */
 function generateFallbackSentences(word) {
-  return [
+  const sentences = [
     {
       id: 'fallback-1',
       text: `「${word}」はよく使われる言葉です。`,
@@ -124,6 +131,13 @@ function generateFallbackSentences(word) {
       isFallback: true,
     },
   ];
+
+  return sentences.map(s => {
+    try {
+      s.tokens = tokenizeText(s.text);
+    } catch (e) {}
+    return s;
+  });
 }
 
 module.exports = router;
