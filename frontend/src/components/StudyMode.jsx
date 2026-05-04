@@ -93,6 +93,15 @@ export default function StudyMode({ onClose }) {
     loadMeaning(wordSurface);
   };
 
+  const resetAnswer = (wordSurface) => {
+    setInputs(prev => ({ ...prev, [wordSurface]: '' }));
+    setResults(prev => {
+      const next = { ...prev };
+      delete next[wordSurface];
+      return next;
+    });
+  };
+
   return (
     <div className="absolute inset-0 z-40 flex flex-col bg-gray-50 dark:bg-nihon-darker animate-in slide-in-from-bottom-4">
       <div className="flex-1 overflow-auto p-6 md:p-10">
@@ -211,8 +220,18 @@ export default function StudyMode({ onClose }) {
                         )}
 
                         {isDone && (
-                          <div className="w-full text-sm mt-1 p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 rounded-lg min-h-[50px] flex items-center justify-center font-medium shadow-inner">
-                            {meanings[word.surface] || <span className="animate-pulse">Đang tải nghĩa...</span>}
+                          <div className="w-full flex flex-col gap-2 mt-1">
+                            <div className="w-full text-sm p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 rounded-lg min-h-[50px] flex items-center justify-center font-medium shadow-inner">
+                              {meanings[word.surface] || <span className="animate-pulse">Đang tải nghĩa...</span>}
+                            </div>
+                            {status === 'revealed' && (
+                              <button
+                                onClick={() => resetAnswer(word.surface)}
+                                className="w-full py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 bg-gray-100 hover:bg-gray-200 dark:bg-nihon-dark dark:hover:bg-gray-700 rounded transition-colors"
+                              >
+                                ↺ Làm lại
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
