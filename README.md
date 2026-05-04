@@ -1,126 +1,94 @@
-# 🎌 Nihongo Learn — Japanese Vocabulary & Kanji Writing Practice
+# 🎌 Nihongo Learn — Japanese Vocabulary & Kanji Learning App
 
-A complete web application for learning Japanese vocabulary and practicing Kanji writing. Upload documents or paste Japanese text, click on words to see definitions, kanji breakdowns, example sentences, and practice writing kanji with stroke guides.
+A full-stack, comprehensive web application for learning Japanese vocabulary, grammar, and Kanji. 
+Easily upload documents or paste Japanese text, click on words to reveal definitions, kanji breakdowns, example sentences, and practice writing kanji with interactive stroke guides.
 
-## ✨ Features
+## ✨ Key Features
+
+### 🌟 New Updates
+- **🔐 Authentication** — Password-protected entry (`hoangfpt`).
+- **🇻🇳 Vietnamese Localization** — UI labels, tooltips, and grammar tags (from Jisho API) are translated to Vietnamese.
+- **↔️ Resizable Layout** — Draggable divider between the text viewer and word details panel.
+- **⚡ Client-Side Caching** — Lightning-fast lookups by caching previously clicked words in memory.
+- **📚 Enhanced Furigana** — Hiragana readings automatically generated for Kanji in example sentences.
+- **🔽 Expandable Panels** — Smooth animations for toggling reading blocks.
 
 ### Core Features
-- **📁 Document Import** — Upload TXT, PDF, or DOCX files containing Japanese text
-- **✏️ Text Paste** — Directly paste Japanese text for analysis
-- **🔍 Interactive Text Viewer** — Click any word to see its details with furigana readings
-- **📖 Word Analysis** — Definitions from Jisho, part of speech, JLPT level
-- **漢 Kanji Breakdown** — ON/KUN readings, meanings, grade, stroke count
-- **✍️ Writing Practice** — HTML5 Canvas for handwriting with pen controls
-- **📊 Stroke Guide** — KanjiVG stroke order with animation
-- **💬 Example Sentences** — From Tatoeba API with translations
-- **🌙 Dark/Light Mode** — Toggle with system preference detection
+- **📁 Document Import** — Upload TXT, PDF, or DOCX files containing Japanese text.
+- **✏️ Text Paste** — Directly paste Japanese text for analysis.
+- **🔍 Interactive Text Viewer** — Kuromoji-tokenized text; click any word to see details.
+- **📖 Word Analysis** — Definitions from Jisho, part of speech, JLPT levels.
+- **漢 Kanji Breakdown** — ON/KUN readings, meanings, grade, stroke count.
+- **✍️ Writing Practice** — HTML5 Canvas for handwriting with pen controls.
+- **📊 Stroke Guide** — KanjiVG stroke order with animation.
+- **💬 Example Sentences** — From Tatoeba API with translations.
+- **🌙 Dark/Light Mode** — Beautiful "Sakura" dark/light themes.
 
 ### Extra Features
-- **★ Bookmarks** — Save words for later review
-- **⏱ Learning History** — Track viewed words
-- **🔄 Spaced Repetition** — SM-2 algorithm for review scheduling
+- **★ Bookmarks** — Save words for later review.
+- **⏱ Learning History** — Track viewed words.
+- **🔄 Spaced Repetition** — SM-2 algorithm for review scheduling.
+
+---
 
 ## 🛠️ Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 19 + Vite |
-| Styling | TailwindCSS 3 |
-| Backend | Node.js + Express |
-| Tokenizer | kuromoji.js |
-| File Processing | pdf-parse, mammoth |
-| APIs | Jisho, Tatoeba, KanjiVG, kanjiapi.dev |
+| **Frontend** | React 19 + Vite |
+| **Styling** | TailwindCSS 3 |
+| **Backend** | Node.js + Express |
+| **NLP Tokenizer**| kuromoji.js |
+| **File Processing**| pdf-parse, mammoth |
+| **APIs** | Jisho, Tatoeba, KanjiVG, kanjiapi.dev |
 
-## 📦 Project Structure
+---
 
-```
-├── backend/
-│   ├── server.js              # Express server entry
-│   ├── routes/
-│   │   ├── upload.js          # File upload & text processing
-│   │   ├── dictionary.js      # Jisho API proxy
-│   │   ├── sentences.js       # Tatoeba API proxy
-│   │   └── kanji.js           # KanjiVG stroke data
-│   └── utils/
-│       └── textProcessor.js   # kuromoji tokenizer
-├── frontend/
-│   ├── src/
-│   │   ├── App.jsx            # Main app with split layout
-│   │   ├── index.css          # TailwindCSS + custom styles
-│   │   ├── components/
-│   │   │   ├── Header.jsx     # App header + theme toggle
-│   │   │   ├── FileUpload.jsx # File upload / text paste
-│   │   │   ├── TextViewer.jsx # Interactive tokenized text
-│   │   │   ├── WordPanel.jsx  # Word analysis panel
-│   │   │   ├── KanjiWriter.jsx# Writing canvas + stroke guide
-│   │   │   ├── ExampleSentences.jsx
-│   │   │   └── Sidebar.jsx    # Bookmarks, history, SRS
-│   │   ├── context/
-│   │   │   └── AppContext.jsx # Global state management
-│   │   ├── hooks/
-│   │   │   └── useTheme.js   # Dark/light mode hook
-│   │   └── services/
-│   │       └── api.js        # API client (axios)
-│   ├── tailwind.config.js
-│   ├── postcss.config.js
-│   └── vite.config.js
-└── README.md
-```
-
-## 🚀 Setup Instructions
+## 🚀 Local Development Setup
 
 ### Prerequisites
 - Node.js 18+ installed
-- npm or yarn
+- Git
 
-### 1. Install Backend Dependencies
-
+### 1. Backend Setup
 ```bash
 cd backend
 npm install
+npm run dev
 ```
+*The backend runs on `http://localhost:5000` and initializes the Kuromoji tokenizer.*
 
-### 2. Install Frontend Dependencies
-
+### 2. Frontend Setup
 ```bash
 cd frontend
 npm install
-```
-
-### 3. Start the Backend Server
-
-```bash
-cd backend
 npm run dev
 ```
+*The frontend runs on `http://localhost:3000`.*
 
-The backend will start on `http://localhost:5000`. It will initialize the kuromoji tokenizer on startup.
+**Access the app:** Open `http://localhost:3000` (Password: `hoangfpt`).
 
-### 4. Start the Frontend Dev Server
+---
 
-```bash
-cd frontend
-npm run dev
-```
+## 🌐 Deployment Guide (Production)
 
-The frontend will start on `http://localhost:3000` with API proxy to the backend.
+The repository contains configuration files for one-click deployments.
 
-### 5. Open in Browser
+### Backend (Render)
+1. Go to [Render](https://render.com/).
+2. Create a **New Blueprint** and connect this GitHub repository.
+3. Render will automatically read `render.yaml` and deploy the Node.js API.
+4. Copy your backend URL (e.g., `https://nihongo-learn-api.onrender.com`).
 
-Navigate to `http://localhost:3000`
+### Frontend (Vercel)
+1. Go to [Vercel](https://vercel.com/) and click **Add New Project**.
+2. Import this GitHub repository.
+3. Set **Root Directory** to `frontend`.
+4. In **Environment Variables**, add:
+   - `VITE_API_URL`: Your Render backend URL + `/api` (e.g., `https://nihongo-learn-api.onrender.com/api`).
+5. Deploy! Vercel will use the `vercel.json` file for routing SPA logic.
 
-## 📝 Usage
-
-1. **Upload or paste** Japanese text
-2. **Click any word** in the text viewer
-3. **Browse tabs** in the analysis panel:
-   - **Info** — Definitions, readings, JLPT level
-   - **Kanji** — Character breakdown with readings
-   - **Write** — Practice writing on canvas
-   - **Examples** — Example sentences
-4. **Bookmark** words with the ★ button
-5. **Add to SRS** with the 🔄 button for spaced repetition
-6. **Toggle dark mode** with the switch in the header
+---
 
 ## 🔌 APIs Used
 
@@ -132,5 +100,4 @@ Navigate to `http://localhost:3000`
 | [KanjiVG](https://github.com/KanjiVG/kanjivg) | Stroke order SVG data |
 
 ## 📄 License
-
 MIT
