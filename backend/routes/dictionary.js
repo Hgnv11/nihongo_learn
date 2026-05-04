@@ -185,6 +185,25 @@ router.get('/kanji/:kanji', async (req, res) => {
       console.warn('kanjiapi.dev request failed:', e.message);
     }
 
+    // Try Mazii API for Vietnamese meaning & etymology
+    let maziiData = null;
+    try {
+      const response = await fetch('https://mazii.net/api/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dict: 'javi', type: 'kanji', query: kanji, limit: 1 }),
+        timeout: 5000
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+          maziiData = data.results[0];
+        }
+      }
+    } catch (e) {
+      console.warn('Mazii API failed:', e.message);
+    }
+
     // Try Jisho API for additional word data
     let jishoData = [];
     try {
@@ -203,16 +222,18 @@ router.get('/kanji/:kanji', async (req, res) => {
     const result = {
       success: true,
       kanji,
-      detail: kanjiDetail
+      detail: kanjiDetail || maziiData
         ? {
-            character: kanjiDetail.kanji,
-            grade: kanjiDetail.grade,
-            strokeCount: kanjiDetail.stroke_count,
-            meanings: kanjiDetail.meanings || [],
-            kunReadings: kanjiDetail.kun_readings || [],
-            onReadings: kanjiDetail.on_readings || [],
-            jlpt: kanjiDetail.jlpt,
-            unicode: kanjiDetail.unicode,
+            character: kanji,
+            grade: kanjiDetail ? kanjiDetail.grade : null,
+            strokeCount: kanjiDetail ? kanjiDetail.stroke_count : (maziiData ? parseInt(maziiData.stroke_count) : null),
+            meanings: kanjiDetail ? kanjiDetail.meanings || [] : [],
+            kunReadings: kanjiDetail ? kanjiDetail.kun_readings || [] : (maziiData && maziiData.kun ? maziiData.kun.split(' ') : []),
+            onReadings: kanjiDetail ? kanjiDetail.on_readings || [] : (maziiData && maziiData.on ? maziiData.on.split(' ') : []),
+            jlpt: kanjiDetail ? kanjiDetail.jlpt : (maziiData && maziiData.level ? parseInt(maziiData.level[0].replace('N', '')) : null),
+            vietnameseMean: maziiData ? maziiData.mean : null,
+            vietnameseDetail: maziiData ? maziiData.detail : null,
+            compDetail: maziiData ? maziiData.compDetail : null,
           }
         : null,
       jishoData,

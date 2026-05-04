@@ -7,6 +7,7 @@ import TextViewer from './components/TextViewer';
 import WordPanel from './components/WordPanel';
 import Sidebar from './components/Sidebar';
 import Login from './components/Login';
+import StudyMode from './components/StudyMode';
 
 function AppContent() {
   const { isDark, toggle } = useTheme();
@@ -19,6 +20,9 @@ function AppContent() {
   const [panelWidth, setPanelWidth] = useState(500);
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
+
+  // Study Mode State
+  const [isStudyModeOpen, setIsStudyModeOpen] = useState(false);
 
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -56,8 +60,10 @@ function AppContent() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 dark:bg-nihon-darker transition-colors duration-300">
-      <Header isDark={isDark} onToggleTheme={toggle} />
+    <div className="h-screen flex flex-col bg-gray-50 dark:bg-nihon-darker transition-colors duration-300 relative">
+      <Header isDark={isDark} onToggleTheme={toggle} onOpenStudyMode={() => setIsStudyModeOpen(true)} />
+
+      {isStudyModeOpen && <StudyMode onClose={() => setIsStudyModeOpen(false)} />}
 
       {/* Loading overlay */}
       {isLoading && (

@@ -1,4 +1,4 @@
-export default function Header({ isDark, onToggleTheme }) {
+export default function Header({ isDark, onToggleTheme, onOpenStudyMode }) {
   return (
     <header className="sticky top-0 z-50 glass-card-solid border-b border-gray-200 dark:border-nihon-border px-6 py-3">
       <div className="max-w-[1800px] mx-auto flex items-center justify-between">
@@ -18,7 +18,15 @@ export default function Header({ isDark, onToggleTheme }) {
         </div>
 
         {/* Controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onOpenStudyMode}
+            className="flex items-center gap-2 px-4 py-2 bg-sakura-500 hover:bg-sakura-600 text-white rounded-lg transition-colors font-medium text-sm shadow-sm"
+          >
+            <span>📝</span>
+            <span>Luyện tập</span>
+          </button>
+
           {/* Theme Toggle */}
           <button
             id="theme-toggle"

@@ -418,9 +418,41 @@ function KanjiTab({ word, kanjiData }) {
                   {detail ? (
                     <>
                       {/* Meanings */}
-                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {detail.meanings.join(', ')}
-                      </p>
+                      <div className="mb-2">
+                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {detail.vietnameseMean && (
+                            <span className="text-sakura-600 dark:text-sakura-400 font-bold uppercase mr-2 text-base">
+                              {detail.vietnameseMean}
+                            </span>
+                          )}
+                          {detail.meanings.join(', ')}
+                        </p>
+                      </div>
+
+                      {/* Explanation (Etymology / Detail) */}
+                      {detail.vietnameseDetail && (
+                        <div className="mb-3 text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-nihon-dark p-2.5 rounded-lg border border-gray-100 dark:border-gray-800">
+                          <p className="font-semibold text-gray-700 dark:text-gray-300 mb-1">Giải nghĩa:</p>
+                          {detail.vietnameseDetail.split('\n').map((line, idx) => (
+                            <p key={idx} className="mb-0.5 last:mb-0 leading-relaxed">{line}</p>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Components (Cấu tạo) */}
+                      {detail.compDetail && detail.compDetail.length > 0 && (
+                        <div className="mb-3">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Cấu tạo bởi</p>
+                          <div className="flex flex-wrap gap-2">
+                            {detail.compDetail.map((comp, idx) => (
+                              <span key={idx} className="text-xs px-2 py-1 bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300 rounded-md border border-rose-100 dark:border-rose-800/30 flex items-center shadow-sm">
+                                <span className="font-japanese text-sm mr-1 font-bold">{comp.w}</span>
+                                <span>{comp.h}</span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Readings */}
                       <div className="space-y-1">
