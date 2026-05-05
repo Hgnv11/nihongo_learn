@@ -51,6 +51,13 @@ export async function searchWord(word) {
 }
 
 /**
+ * Get Vietnamese word meaning from Mazii
+ */
+export async function searchMaziiWord(word) {
+  return fetchWithCache(`mazii:${word}`, `/dictionary/mazii/${encodeURIComponent(word)}`);
+}
+
+/**
  * Get kanji details
  */
 export async function getKanjiInfo(kanji) {

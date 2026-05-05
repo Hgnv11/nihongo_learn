@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toHiragana } from 'wanakana';
-import { submitText, searchWord } from '../services/api';
+import { submitText, searchWord, searchMaziiWord } from '../services/api';
 
 export default function StudyMode({ onClose }) {
   const [inputText, setInputText] = useState('');
@@ -57,18 +57,27 @@ export default function StudyMode({ onClose }) {
 
   const loadMeaning = async (wordSurface) => {
     if (meanings[wordSurface]) return;
+    // Set loading state
+    setMeanings(prev => ({ ...prev, [wordSurface]: null }));
     try {
+      // 1. Try Mazii for Vietnamese meaning first
+      const mazii = await searchMaziiWord(wordSurface);
+      if (mazii && mazii.meaning) {
+        setMeanings(prev => ({ ...prev, [wordSurface]: { vi: mazii.meaning, en: null } }));
+        return;
+      }
+    } catch (_) {}
+    try {
+      // 2. Fallback: Jisho English
       const data = await searchWord(wordSurface);
       if (data.results && data.results.length > 0) {
-        const senses = data.results[0].senses;
-        // Collect first few english meanings
-        const primaryMeaning = senses[0].englishDefinitions.slice(0, 3).join(', ');
-        setMeanings(prev => ({ ...prev, [wordSurface]: primaryMeaning }));
+        const en = data.results[0].senses[0].englishDefinitions.slice(0, 3).join(', ');
+        setMeanings(prev => ({ ...prev, [wordSurface]: { vi: null, en } }));
       } else {
-        setMeanings(prev => ({ ...prev, [wordSurface]: 'Không tìm thấy nghĩa' }));
+        setMeanings(prev => ({ ...prev, [wordSurface]: { vi: null, en: 'Không tìm thấy nghĩa' } }));
       }
     } catch (err) {
-      setMeanings(prev => ({ ...prev, [wordSurface]: 'Lỗi tải nghĩa' }));
+      setMeanings(prev => ({ ...prev, [wordSurface]: { vi: null, en: 'Lỗi tải nghĩa' } }));
     }
   };
 
@@ -219,21 +228,30 @@ export default function StudyMode({ onClose }) {
                           </div>
                         )}
 
-                        {isDone && (
-                          <div className="w-full flex flex-col gap-2 mt-1">
-                            <div className="w-full text-sm p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 rounded-lg min-h-[50px] flex items-center justify-center font-medium shadow-inner">
-                              {meanings[word.surface] || <span className="animate-pulse">Đang tải nghĩa...</span>}
+                        {isDone && (() => {
+                          const m = meanings[word.surface];
+                          return (
+                            <div className="w-full flex flex-col gap-2 mt-1">
+                              <div className="w-full text-sm p-3 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-blue-900 dark:text-blue-200 rounded-lg min-h-[52px] flex flex-col items-center justify-center gap-1 shadow-inner">
+                                {!m ? (
+                                  <span className="animate-pulse text-gray-400">Dang tai nghia...</span>
+                                ) : m.vi ? (
+                                  <span className="font-medium text-center leading-snug">VN: {m.vi}</span>
+                                ) : (
+                                  <span className="font-medium text-center leading-snug text-indigo-700 dark:text-indigo-300">EN: {m.en}</span>
+                                )}
+                              </div>
+                              {status === 'revealed' && (
+                                <button
+                                  onClick={() => resetAnswer(word.surface)}
+                                  className="w-full py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 bg-gray-100 hover:bg-gray-200 dark:bg-nihon-dark dark:hover:bg-gray-700 rounded transition-colors"
+                                >
+                                  Lam lai
+                                </button>
+                              )}
                             </div>
-                            {status === 'revealed' && (
-                              <button
-                                onClick={() => resetAnswer(word.surface)}
-                                className="w-full py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 bg-gray-100 hover:bg-gray-200 dark:bg-nihon-dark dark:hover:bg-gray-700 rounded transition-colors"
-                              >
-                                ↺ Làm lại
-                              </button>
-                            )}
-                          </div>
-                        )}
+                          );
+                        })()}
                       </div>
                     );
                   })}

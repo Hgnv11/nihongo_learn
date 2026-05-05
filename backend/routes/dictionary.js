@@ -158,6 +158,48 @@ router.get('/search/:word', async (req, res) => {
 });
 
 /**
+ * GET /api/dictionary/mazii/:word
+ * Get Vietnamese word meaning from Mazii
+ */
+router.get('/mazii/:word', async (req, res) => {
+  try {
+    const { word } = req.params;
+    const cacheKey = `mazii-word:${word}`;
+
+    const cached = getCached(cacheKey);
+    if (cached) return res.json(cached);
+
+    const response = await fetch('https://mazii.net/api/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dict: 'javi', type: 'word', query: word, limit: 1 }),
+      timeout: 6000,
+    });
+
+    if (!response.ok) {
+      return res.json({ success: false, meaning: null });
+    }
+
+    const data = await response.json();
+    let meaning = null;
+
+    if (data.results && data.results.length > 0) {
+      const r = data.results[0];
+      // Mazii word results typically have `mean` field
+      meaning = r.mean || r.detail || null;
+    }
+
+    const result = { success: true, meaning };
+    setCache(cacheKey, result);
+    res.json(result);
+  } catch (err) {
+    console.warn('Mazii word search error:', err.message);
+    res.json({ success: false, meaning: null });
+  }
+});
+
+
+/**
  * GET /api/dictionary/kanji/:kanji
  * Get kanji details
  */
