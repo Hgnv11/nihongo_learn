@@ -41,7 +41,7 @@ export default function KanjiWriter({ word }) {
   }, [selectedKanji]);
 
   // Initialize canvas
-  useEffect(() => {
+  const initCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -58,6 +58,23 @@ export default function KanjiWriter({ word }) {
     clearCanvas();
   }, [selectedKanji]);
 
+  useEffect(() => {
+    initCanvas();
+  }, [initCanvas]);
+
+  // Re-init canvas on resize to keep coordinates accurate
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const observer = new ResizeObserver(() => {
+      initCanvas();
+    });
+    observer.observe(canvas);
+
+    return () => observer.disconnect();
+  }, [initCanvas]);
+
   // Detect dark mode for pen color
   useEffect(() => {
     const isDark = document.documentElement.classList.contains('dark');
@@ -68,17 +85,25 @@ export default function KanjiWriter({ word }) {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
 
+    // Use clientWidth/clientHeight (content area, excludes border) for accurate scaling
+    const scaleX = canvas.width / canvas.clientWidth;
+    const scaleY = canvas.height / canvas.clientHeight;
+    const dpr = window.devicePixelRatio || 1;
+
+    let clientX, clientY;
     if (e.touches) {
-      return {
-        x: e.touches[0].clientX - rect.left,
-        y: e.touches[0].clientY - rect.top,
-      };
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
     }
 
-    return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    };
+    // Subtract border width (clientLeft/clientTop) to get position relative to content area
+    const x = (clientX - rect.left - canvas.clientLeft) * scaleX / dpr;
+    const y = (clientY - rect.top - canvas.clientTop) * scaleY / dpr;
+
+    return { x, y };
   };
 
   const startDrawing = (e) => {
