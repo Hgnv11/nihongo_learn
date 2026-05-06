@@ -194,7 +194,7 @@ export default function WordPanel() {
               <KanjiTab word={selectedWord} kanjiData={kanjiData} dispatch={dispatch} />
             )}
             {activeTab === 'practice' && <KanjiWriter word={selectedWord} />}
-            {activeTab === 'examples' && <ExampleSentences sentences={exampleSentences} />}
+            {activeTab === 'examples' && <ExampleSentences sentences={exampleSentences} targetWord={selectedWord?.surface} />}
           </>
         )}
       </div>

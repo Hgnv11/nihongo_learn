@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { searchWord, getKanjiInfo, getExampleSentences } from '../services/api';
 import { getKanaForms } from '../utils/kana';
@@ -6,6 +6,14 @@ import { getKanaForms } from '../utils/kana';
 export default function TextViewer() {
   const { state, dispatch } = useApp();
   const { tokens, selectedTokenIndex, stats, fileName, bookmarks } = state;
+  const textContentRef = useRef(null);
+
+  // Build an ordered list of indices for Kanji tokens only (skip hiragana-only words)
+  const kanjiIndices = useMemo(() => {
+    return tokens
+      .map((t, i) => (t.hasKanji ? i : -1))
+      .filter((i) => i !== -1);
+  }, [tokens]);
 
   const handleWordClick = useCallback(
     async (token, index) => {
@@ -66,6 +74,44 @@ export default function TextViewer() {
   const handleClearDocument = () => {
     dispatch({ type: 'CLEAR_DOCUMENT' });
   };
+
+  // Keyboard navigation: ↑/↓ to move between Kanji words only
+  useEffect(() => {
+    const container = textContentRef.current;
+    if (!container || kanjiIndices.length === 0) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      e.preventDefault();
+
+      // Find current position in the kanjiIndices array
+      let currentPos = -1;
+      if (selectedTokenIndex !== null) {
+        currentPos = kanjiIndices.indexOf(selectedTokenIndex);
+      }
+
+      let nextPos;
+      if (e.key === 'ArrowDown') {
+        nextPos = currentPos + 1;
+        if (nextPos >= kanjiIndices.length) return; // already at last word
+      } else {
+        nextPos = currentPos - 1;
+        if (nextPos < 0) return; // already at first word
+      }
+
+      const nextTokenIndex = kanjiIndices[nextPos];
+      const nextToken = tokens[nextTokenIndex];
+
+      // Scroll the word element into view
+      const el = document.getElementById(`token-${nextTokenIndex}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      handleWordClick(nextToken, nextTokenIndex);
+    };
+
+    container.addEventListener('keydown', handleKeyDown);
+    return () => container.removeEventListener('keydown', handleKeyDown);
+  }, [kanjiIndices, selectedTokenIndex, tokens, handleWordClick]);
 
   const isBookmarked = (surface) => bookmarks.some((b) => b.surface === surface);
 
@@ -165,7 +211,7 @@ export default function TextViewer() {
       </div>
 
       {/* Text Content */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div ref={textContentRef} tabIndex={0} className="flex-1 overflow-y-auto p-6 outline-none">
         <div className="max-w-3xl mx-auto space-y-1">
           {renderTokens()}
         </div>

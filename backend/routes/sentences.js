@@ -31,6 +31,32 @@ function setCache(key, data) {
 }
 
 /**
+ * Helper: fetch Tatoeba sentences with proper AbortController timeout
+ */
+async function fetchTatoeba(word, targetLang, timeoutMs = 5000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(
+      `https://tatoeba.org/en/api_v0/search?from=jpn&to=${targetLang}&query=${encodeURIComponent(word)}&limit=5`,
+      { headers: FETCH_HEADERS, signal: controller.signal }
+    );
+    clearTimeout(timer);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.results || [];
+  } catch (err) {
+    clearTimeout(timer);
+    if (err.name === 'AbortError') {
+      console.warn(`Tatoeba timeout (${targetLang}) for "${word}"`);
+    } else {
+      console.warn(`Tatoeba error (${targetLang}) for "${word}":`, err.message);
+    }
+    return [];
+  }
+}
+
+/**
  * GET /api/sentences/search/:word
  * Search for example sentences using Tatoeba API
  */
@@ -45,52 +71,58 @@ router.get('/search/:word', async (req, res) => {
     }
 
     let sentences = [];
+    let usedLang = null;
 
-    // Try Tatoeba API
-    try {
-      const response = await fetch(
-        `https://tatoeba.org/en/api_v0/search?from=jpn&to=vie&query=${encodeURIComponent(
-          word
-        )}&limit=5`,
-        { headers: FETCH_HEADERS, timeout: 10000 }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.results && data.results.length > 0) {
-          sentences = data.results.slice(0, 3).map((result) => {
-            const translation = result.translations
-              ? result.translations.flat().find((t) => t && t.lang === 'vie')
-              : null;
-
-            let tokens = null;
-            try {
-              if (result.text) tokens = tokenizeText(result.text);
-            } catch (e) {}
-
-            return {
-              id: result.id,
-              text: result.text,
-              lang: result.lang,
-              tokens,
-              translation: translation ? translation.text : null,
-              translationLang: translation ? translation.lang : null,
-            };
-          });
-        }
-      } else {
-        console.warn(`Tatoeba API returned ${response.status}`);
-      }
-    } catch (tatoErr) {
-      console.warn('Tatoeba API request failed:', tatoErr.message);
+    // 1. Try Vietnamese first (short timeout)
+    const vieResults = await fetchTatoeba(word, 'vie', 5000);
+    if (vieResults.length > 0) {
+      usedLang = 'vie';
+      sentences = vieResults.slice(0, 3).map((result) => {
+        const translation = result.translations
+          ? result.translations.flat().find((t) => t && t.lang === 'vie')
+          : null;
+        let tokens = null;
+        try { if (result.text) tokens = tokenizeText(result.text); } catch (e) {}
+        return {
+          id: result.id,
+          text: result.text,
+          lang: result.lang,
+          tokens,
+          translation: translation ? translation.text : null,
+          translationLang: 'vie',
+        };
+      });
     }
 
-    // Fallback examples if no Tatoeba results
+    // 2. Fallback to English if no Vietnamese results
+    if (sentences.length === 0) {
+      const engResults = await fetchTatoeba(word, 'eng', 5000);
+      if (engResults.length > 0) {
+        usedLang = 'eng';
+        sentences = engResults.slice(0, 3).map((result) => {
+          const translation = result.translations
+            ? result.translations.flat().find((t) => t && t.lang === 'eng')
+            : null;
+          let tokens = null;
+          try { if (result.text) tokens = tokenizeText(result.text); } catch (e) {}
+          return {
+            id: result.id,
+            text: result.text,
+            lang: result.lang,
+            tokens,
+            translation: translation ? translation.text : null,
+            translationLang: 'eng',
+          };
+        });
+      }
+    }
+
+    // 3. Final fallback: generated sentences
     if (sentences.length === 0) {
       sentences = generateFallbackSentences(word);
     }
 
-    const result = { success: true, word, sentences };
+    const result = { success: true, word, sentences, usedLang };
     setCache(cacheKey, result);
 
     res.json(result);

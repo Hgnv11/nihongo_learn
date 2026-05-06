@@ -1,43 +1,89 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { toHiragana } from 'wanakana';
-import { submitText, searchWord, searchMaziiWord } from '../services/api';
+
+/**
+ * Parse input lines in the format:
+ *   快適（かいてき）: thoải mái → khoái thích
+ *   kanji（cách đọc）: nghĩa → hán việt
+ *
+ * Supports both （）and () parentheses, and both → and ->
+ * Returns array of { surface, readingHiragana, meaning, hanViet }
+ */
+function parseStudyInput(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const results = [];
+
+  for (const line of lines) {
+    // Pattern: KANJI（READING）: MEANING → HANVIET
+    // Also support: KANJI(READING): MEANING -> HANVIET
+    const match = line.match(
+      /^(.+?)[（(](.+?)[）)]\s*[:：]\s*(.+?)\s*[→\->]+\s*(.+)$/
+    );
+
+    if (match) {
+      results.push({
+        surface: match[1].trim(),
+        readingHiragana: match[2].trim(),
+        meaning: match[3].trim(),
+        hanViet: match[4].trim(),
+      });
+    } else {
+      // Try simpler format without Hán Việt: KANJI（READING）: MEANING
+      const match2 = line.match(
+        /^(.+?)[（(](.+?)[）)]\s*[:：]\s*(.+)$/
+      );
+      if (match2) {
+        results.push({
+          surface: match2[1].trim(),
+          readingHiragana: match2[2].trim(),
+          meaning: match2[3].trim(),
+          hanViet: '',
+        });
+      }
+    }
+  }
+
+  return results;
+}
 
 export default function StudyMode({ onClose }) {
   const [inputText, setInputText] = useState('');
   const [studyList, setStudyList] = useState([]);
   const [isStarted, setIsStarted] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState({}); // word -> 'correct' | 'incorrect' | 'revealed'
   const [inputs, setInputs] = useState({}); // word -> string
-  const [meanings, setMeanings] = useState({}); // word -> string
+  const inputRefs = useRef([]);
+  const fileInputRef = useRef(null);
 
-  const handleStart = async () => {
+  const handleFileImport = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const content = evt.target.result;
+      setInputText(prev => prev ? prev + '\n' + content : content);
+    };
+    reader.readAsText(file, 'UTF-8');
+
+    // Reset file input so the same file can be selected again
+    e.target.value = '';
+  };
+
+  const handleStart = () => {
     if (!inputText.trim()) return;
-    setIsLoading(true);
-    try {
-      const data = await submitText(inputText);
-      
-      // Filter words containing Kanji
-      const kanjiWords = data.tokens.filter(t => t.hasKanji);
-      
-      // Remove duplicates
-      const uniqueWords = [];
-      const seen = new Set();
-      for (const w of kanjiWords) {
-        if (!seen.has(w.surface)) {
-          seen.add(w.surface);
-          uniqueWords.push(w);
-        }
-      }
-      
-      setStudyList(uniqueWords);
-      setIsStarted(true);
-    } catch (err) {
-      console.error(err);
-      alert('Lỗi khi phân tích từ vựng.');
-    } finally {
-      setIsLoading(false);
+
+    const parsed = parseStudyInput(inputText);
+
+    if (parsed.length === 0) {
+      alert('Không tìm thấy từ nào. Hãy nhập theo định dạng:\n快適（かいてき）: thoải mái → khoái thích');
+      return;
     }
+
+    setStudyList(parsed);
+    setIsStarted(true);
+    setResults({});
+    setInputs({});
   };
 
   const handleInputChange = (word, value) => {
@@ -55,32 +101,6 @@ export default function StudyMode({ onClose }) {
     }
   };
 
-  const loadMeaning = async (wordSurface) => {
-    if (meanings[wordSurface]) return;
-    // Set loading state
-    setMeanings(prev => ({ ...prev, [wordSurface]: null }));
-    try {
-      // 1. Try Mazii for Vietnamese meaning first
-      const mazii = await searchMaziiWord(wordSurface);
-      if (mazii && mazii.meaning) {
-        setMeanings(prev => ({ ...prev, [wordSurface]: { vi: mazii.meaning, en: null } }));
-        return;
-      }
-    } catch (_) {}
-    try {
-      // 2. Fallback: Jisho English
-      const data = await searchWord(wordSurface);
-      if (data.results && data.results.length > 0) {
-        const en = data.results[0].senses[0].englishDefinitions.slice(0, 3).join(', ');
-        setMeanings(prev => ({ ...prev, [wordSurface]: { vi: null, en } }));
-      } else {
-        setMeanings(prev => ({ ...prev, [wordSurface]: { vi: null, en: 'Không tìm thấy nghĩa' } }));
-      }
-    } catch (err) {
-      setMeanings(prev => ({ ...prev, [wordSurface]: { vi: null, en: 'Lỗi tải nghĩa' } }));
-    }
-  };
-
   const checkAnswer = (wordSurface, correctReading) => {
     const userAnswer = (inputs[wordSurface] || '').trim();
     if (!userAnswer) return;
@@ -90,16 +110,11 @@ export default function StudyMode({ onClose }) {
       ...prev,
       [wordSurface]: isCorrect ? 'correct' : 'incorrect'
     }));
-
-    if (isCorrect) {
-      loadMeaning(wordSurface);
-    }
   };
 
   const showAnswer = (wordSurface, correctReading) => {
     setInputs(prev => ({ ...prev, [wordSurface]: correctReading }));
     setResults(prev => ({ ...prev, [wordSurface]: 'revealed' }));
-    loadMeaning(wordSurface);
   };
 
   const resetAnswer = (wordSurface) => {
@@ -110,6 +125,12 @@ export default function StudyMode({ onClose }) {
       return next;
     });
   };
+
+  // Stats
+  const totalWords = studyList.length;
+  const correctCount = Object.values(results).filter(r => r === 'correct').length;
+  const revealedCount = Object.values(results).filter(r => r === 'revealed').length;
+  const doneCount = correctCount + revealedCount;
 
   return (
     <div className="absolute inset-0 z-40 flex flex-col bg-gray-50 dark:bg-nihon-darker animate-in slide-in-from-bottom-4">
@@ -134,40 +155,80 @@ export default function StudyMode({ onClose }) {
 
           {!isStarted ? (
             <div className="space-y-4 animate-in fade-in">
-              <label className="block text-gray-700 dark:text-gray-200 font-medium">
-                Nhập danh sách từ vựng cần luyện tập:
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-gray-700 dark:text-gray-200 font-medium">
+                  Nhập danh sách từ vựng cần luyện tập:
+                </label>
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".txt,.csv,.tsv"
+                  onChange={handleFileImport}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-lg transition-colors border border-indigo-200 dark:border-indigo-800"
+                >
+                  📂 Import file
+                </button>
+              </div>
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl text-sm text-blue-800 dark:text-blue-300">
+                <p className="font-semibold mb-1">📌 Định dạng nhập:</p>
+                <code className="block bg-white dark:bg-nihon-dark px-3 py-2 rounded-lg mt-1 font-japanese text-base">
+                  快適（かいてき）: thoải mái → khoái thích
+                </code>
+                <p className="mt-2 text-xs opacity-80">
+                  Mỗi dòng 1 từ: <strong>Kanji（cách đọc）: nghĩa → hán việt</strong>
+                </p>
+              </div>
               <textarea
                 className="w-full h-48 p-4 bg-white dark:bg-nihon-dark border border-gray-200 dark:border-gray-700 rounded-xl text-lg text-gray-800 dark:text-white font-japanese resize-none focus:ring-2 focus:ring-sakura-500 outline-none"
-                placeholder="Ví dụ: 食べる, 飲む, 走る... (có thể copy/paste cả đoạn văn, hệ thống sẽ tự tìm các chữ Kanji)"
+                placeholder={"快適（かいてき）: thoải mái → khoái thích\n安全（あんぜん）: an toàn → an toàn\n危険（きけん）: nguy hiểm → nguy hiểm"}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
               />
               <button
                 onClick={handleStart}
-                disabled={isLoading || !inputText.trim()}
+                disabled={!inputText.trim()}
                 className="w-full py-3 bg-sakura-500 hover:bg-sakura-600 disabled:bg-gray-300 disabled:text-gray-500 dark:disabled:bg-gray-700 dark:disabled:text-gray-400 text-white text-lg font-medium rounded-xl transition-colors"
               >
-                {isLoading ? 'Đang phân tích...' : 'Bắt đầu ngay'}
+                Bắt đầu ngay
               </button>
             </div>
           ) : (
             <div className="space-y-6 animate-in fade-in">
-              <div className="flex items-center justify-between">
-                <p className="text-gray-600 dark:text-gray-300">
-                  Hãy nhập Romaji, hệ thống sẽ tự động chuyển thành Hiragana!
-                </p>
-                <button
-                  onClick={() => setIsStarted(false)}
-                  className="text-sakura-600 hover:text-sakura-700 font-medium text-sm"
-                >
-                  ← Đổi danh sách
-                </button>
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <p className="text-gray-600 dark:text-gray-300">
+                    Hãy nhập Romaji, hệ thống sẽ tự động chuyển thành Hiragana!
+                  </p>
+                  {totalWords > 0 && (
+                    <span className="text-sm px-3 py-1 bg-sakura-50 dark:bg-sakura-900/20 text-sakura-600 dark:text-sakura-400 rounded-full font-medium">
+                      {doneCount}/{totalWords} hoàn thành
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => { setResults({}); setInputs({}); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/40 text-amber-600 dark:text-amber-400 rounded-lg transition-colors border border-amber-200 dark:border-amber-800"
+                  >
+                    🔄 Reset all
+                  </button>
+                  <button
+                    onClick={() => { setIsStarted(false); setResults({}); setInputs({}); }}
+                    className="text-sakura-600 hover:text-sakura-700 font-medium text-sm"
+                  >
+                    ← Đổi danh sách
+                  </button>
+                </div>
               </div>
 
               {studyList.length === 0 ? (
                 <div className="text-center py-12">
-                  <p className="text-xl text-gray-500">Không tìm thấy từ Kanji nào trong văn bản của bạn.</p>
+                  <p className="text-xl text-gray-500">Không tìm thấy từ nào trong danh sách.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -189,6 +250,7 @@ export default function StudyMode({ onClose }) {
                         <div className="w-full relative">
                           <input
                             type="text"
+                            ref={(el) => (inputRefs.current[idx] = el)}
                             className={`w-full text-center py-2 px-3 bg-gray-50 dark:bg-nihon-dark border rounded-lg text-lg font-japanese text-gray-800 dark:text-white focus:ring-2 focus:ring-sakura-500 outline-none transition-all ${
                               status === 'correct' ? 'border-green-500 text-green-700 dark:text-green-400' :
                               status === 'incorrect' ? 'border-red-500 text-red-600 dark:text-red-400' :
@@ -199,7 +261,25 @@ export default function StudyMode({ onClose }) {
                             value={inputs[word.surface] || ''}
                             onChange={(e) => handleInputChange(word.surface, e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter') checkAnswer(word.surface, word.readingHiragana);
+                              if (e.key === 'Enter') {
+                                checkAnswer(word.surface, word.readingHiragana);
+                              } else if (e.key === 'ArrowDown') {
+                                e.preventDefault();
+                                let i = idx + 1;
+                                while (i < inputRefs.current.length) {
+                                  const el = inputRefs.current[i];
+                                  if (el && !el.disabled) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); break; }
+                                  i++;
+                                }
+                              } else if (e.key === 'ArrowUp') {
+                                e.preventDefault();
+                                let i = idx - 1;
+                                while (i >= 0) {
+                                  const el = inputRefs.current[i];
+                                  if (el && !el.disabled) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); break; }
+                                  i--;
+                                }
+                              }
                             }}
                             disabled={isDone}
                           />
@@ -228,30 +308,30 @@ export default function StudyMode({ onClose }) {
                           </div>
                         )}
 
-                        {isDone && (() => {
-                          const m = meanings[word.surface];
-                          return (
-                            <div className="w-full flex flex-col gap-2 mt-1">
-                              <div className="w-full text-sm p-3 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-blue-900 dark:text-blue-200 rounded-lg min-h-[52px] flex flex-col items-center justify-center gap-1 shadow-inner">
-                                {!m ? (
-                                  <span className="animate-pulse text-gray-400">Dang tai nghia...</span>
-                                ) : m.vi ? (
-                                  <span className="font-medium text-center leading-snug">VN: {m.vi}</span>
-                                ) : (
-                                  <span className="font-medium text-center leading-snug text-indigo-700 dark:text-indigo-300">EN: {m.en}</span>
-                                )}
-                              </div>
-                              {status === 'revealed' && (
-                                <button
-                                  onClick={() => resetAnswer(word.surface)}
-                                  className="w-full py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 bg-gray-100 hover:bg-gray-200 dark:bg-nihon-dark dark:hover:bg-gray-700 rounded transition-colors"
-                                >
-                                  Lam lai
-                                </button>
+                        {isDone && (
+                          <div className="w-full flex flex-col gap-2 mt-1">
+                            <div className="w-full text-sm p-3 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-blue-900 dark:text-blue-200 rounded-lg min-h-[52px] flex flex-col items-center justify-center gap-1.5 shadow-inner">
+                              {/* Nghĩa tiếng Việt */}
+                              <span className="font-medium text-center leading-snug">
+                                🇻🇳 {word.meaning}
+                              </span>
+                              {/* Hán Việt */}
+                              {word.hanViet && (
+                                <span className="font-bold text-center leading-snug text-sakura-600 dark:text-sakura-400 uppercase tracking-wide text-xs">
+                                  漢 {word.hanViet}
+                                </span>
                               )}
                             </div>
-                          );
-                        })()}
+                            {status === 'revealed' && (
+                              <button
+                                onClick={() => resetAnswer(word.surface)}
+                                className="w-full py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 bg-gray-100 hover:bg-gray-200 dark:bg-nihon-dark dark:hover:bg-gray-700 rounded transition-colors"
+                              >
+                                Làm lại
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
